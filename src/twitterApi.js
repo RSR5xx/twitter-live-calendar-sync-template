@@ -8,6 +8,11 @@ async function apiGet(path, bearerToken) {
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
+    if (res.status === 402) {
+      throw new Error(
+        `[X APIクレジット切れ] X APIの支払いクレジットが枯渇しています。console.x.com でチャージしてください。(詳細: ${body})`
+      );
+    }
     throw new Error(`X API エラー (${res.status} ${path}): ${body}`);
   }
   return res.json();
