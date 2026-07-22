@@ -1,0 +1,16 @@
+{
+  "name": "twitter-live-calendar-sync",
+  "version": "1.0.0",
+  "private": true,
+  "description": "自分のツイート(LIVE INFO)を解析してGoogleカレンダーに自動反映する",
+  "type": "module",
+  "scripts": {
+    "sync": "node src/index.js",
+    "auth:google": "node src/googleAuth.js",
+    "test:parser": "node src/parseTweet.test.js"
+  },
+  "dependencies": {
+    "googleapis": "^140.0.1",
+    "open": "^10.1.0"
+  }
+}

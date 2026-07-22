@@ -1,0 +1,22 @@
+{
+  "twitterUsername": "your_handle_without_at",
+  "calendarId": "primary",
+  "defaultDurationMinutes": 180,
+  "lookbackTweetCount": 30,
+  "format": {
+    "triggerMarker": "LIVE INFO",
+    "dateLabel": "日程",
+    "venueLabel": "会場",
+    "priceLabel": "料金",
+    "benefitLabel": "入場特典",
+    "stageTimeLabel": "出番",
+    "merchTimeLabel": "物販",
+    "openLabel": "op(?:en)?",
+    "startLabel": "st(?:art)?",
+    "titleOpenBracket": "「",
+    "titleCloseBracket": "」",
+    "dateRegex": "(?<month>\\d{1,2})\\/(?<day>\\d{1,2})",
+    "timeRegex": "(?<hour>\\d{1,2}):(?<minute>\\d{2})",
+    "timeRangeRegex": "(?<startHour>\\d{1,2}):(?<startMinute>\\d{2})\\s*[~〜\\-ー]\\s*(?<endHour>\\d{1,2}):(?<endMinute>\\d{2})"
+  }
+}
