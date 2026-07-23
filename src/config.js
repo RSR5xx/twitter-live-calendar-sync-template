@@ -15,7 +15,6 @@ export function loadConfig() {
   return {
     twitterUsername: raw.twitterUsername,
     calendarId: raw.calendarId ?? "primary",
-    defaultDurationMinutes: raw.defaultDurationMinutes ?? 180,
     lookbackTweetCount: raw.lookbackTweetCount ?? 30,
     // ツイートのラベル文字列(日程・会場・料金など)をカスタマイズしたい場合に上書きする。
     // 未指定のキーは parseTweet.js の DEFAULT_FORMAT が使われる。

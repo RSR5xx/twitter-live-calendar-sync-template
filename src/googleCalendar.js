@@ -151,7 +151,9 @@ export async function upsertCalendarEvent(parsed, { calendarId, state }) {
   const deletedPlaceholderId = await deleteMatchingPlaceholder(calendar, calendarId, parsed, existingEventId);
 
   if (existingEventId) {
-    const res = await calendar.events.patch({ calendarId, eventId: existingEventId, requestBody: resource });
+    // 時刻指定⇔終日の間で切り替わることがあるため、部分更新のpatchではなく
+    // 全体を置き換えるupdateを使う(patchだと date/dateTime の型変更で失敗することがある)
+    const res = await calendar.events.update({ calendarId, eventId: existingEventId, requestBody: resource });
     state.events[parsed.eventKey] = { calendarEventId: res.data.id, updatedAt: new Date().toISOString() };
     return { action: "updated", eventId: res.data.id, replacedPlaceholderId: deletedPlaceholderId };
   }

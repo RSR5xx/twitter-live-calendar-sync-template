@@ -44,7 +44,6 @@ async function main() {
 
   for (const tweet of chronological) {
     const parsed = parseLiveInfoTweet(tweet.text, {
-      defaultDurationMinutes: config.defaultDurationMinutes,
       tweetUrl: tweet.url,
       format: config.format,
       // 「今日」ではなく「ツイートが投稿された日」を基準に年を推定する。

@@ -8,9 +8,9 @@
 //
 // カレンダーの説明欄には、タイトルの括弧から始まる元ツイートの内容をそのまま使う
 // (先頭の「☔️LIVE INFO☔️」等の前置きは含めない)。
-// 開始時刻は「出番」を優先しOPEN/STARTで代用、終了時刻は「物販」の終了>「出番」の
-// 終了>デフォルト長、の優先順で決める。出番・OPEN/STARTのどちらも無ければ(時刻未定)
-// 終日予定として扱う。
+// 「出番」の時間が確定して初めて時刻指定の予定にする(終了時刻は「物販」の終了を優先し、
+// 無ければ「出番」の終了)。OPEN/STARTしか無い(出番がまだ未確定な)段階では、
+// 本人の出演時間として正確ではないため終日予定として登録する。
 
 export const DEFAULT_FORMAT = {
   triggerMarker: "LIVE INFO",
@@ -20,14 +20,10 @@ export const DEFAULT_FORMAT = {
   benefitLabel: "入場特典",
   stageTimeLabel: "出番",
   merchTimeLabel: "物販",
-  openLabel: "op(?:en)?",
-  startLabel: "st(?:art)?",
   titleOpenBracket: "「",
   titleCloseBracket: "」",
   // 日付: 年が無ければ referenceDate から前後3日以内の未来として推定する
   dateRegex: "(?<month>\\d{1,2})\\/(?<day>\\d{1,2})",
-  // 単一時刻(OPEN/START用)
-  timeRegex: "(?<hour>\\d{1,2}):(?<minute>\\d{2})",
   // 時刻の範囲(出番/物販用)
   timeRangeRegex:
     "(?<startHour>\\d{1,2}):(?<startMinute>\\d{2})\\s*[~〜\\-ー]\\s*(?<endHour>\\d{1,2}):(?<endMinute>\\d{2})",
@@ -42,15 +38,6 @@ function extractLine(text, label) {
   const re = new RegExp(`${label}[^｜|:：\\n]*[｜|:：]\\s*(.+)`);
   const m = text.match(re);
   return m ? m[1].trim() : null;
-}
-
-function extractTime(text, label, timeRegex) {
-  // "OPEN 9:15" / "OPEN/13:25" / "op17:30" のように、ラベルと時刻の間の区切りが
-  // 空白・スラッシュ・コロン・省略記法など様々なため、緩めに許容する
-  const re = new RegExp(`${label}[\\/:：\\s]*${timeRegex}`, "i");
-  const m = text.match(re);
-  if (!m?.groups) return null;
-  return { hour: Number(m.groups.hour), minute: Number(m.groups.minute) };
 }
 
 function extractTimeRange(text, label, timeRangeRegex) {
@@ -100,18 +87,12 @@ export function makeEventKey(title, year, month, day) {
  * @param {string} tweetText
  * @param {object} [opts]
  * @param {Date} [opts.referenceDate] - 年を推定する基準日 (省略時は現在時刻、dateRegexにyearが含まれる場合は未使用)
- * @param {number} [opts.defaultDurationMinutes] - OPEN/START形式のとき使うイベント長 (分)
  * @param {string} [opts.tweetUrl] - 元ツイートへのリンク (戻り値のtweetUrlに入るだけで、説明欄には含めない)
  * @param {Partial<typeof DEFAULT_FORMAT>} [opts.format] - ラベル・日付/時刻書式のカスタマイズ
  * @returns {object|null}
  */
 export function parseLiveInfoTweet(tweetText, opts = {}) {
-  const {
-    referenceDate,
-    defaultDurationMinutes = 180,
-    tweetUrl = null,
-    format = {},
-  } = opts;
+  const { referenceDate, tweetUrl = null, format = {} } = opts;
   const f = { ...DEFAULT_FORMAT, ...format };
 
   if (!tweetText || !tweetText.includes(f.triggerMarker)) return null;
@@ -148,41 +129,28 @@ export function parseLiveInfoTweet(tweetText, opts = {}) {
 
   const stageRange = extractTimeRange(tweetText, f.stageTimeLabel, f.timeRangeRegex);
   const merchRange = extractTimeRange(tweetText, f.merchTimeLabel, f.timeRangeRegex);
-  const openTime = extractTime(tweetText, f.openLabel, f.timeRegex);
 
   let start;
   let end;
   let timeSource;
   let allDay = false;
 
-  // 「出番」の時間があれば見出しの有無に関わらず優先する。無ければOPEN/STARTで代用する。
-  // どちらも無い(「時間｜未定」等、時刻がまだ決まっていない)場合は終日予定にする。
+  // 「出番」の時間が確定して初めて時刻指定の予定にする。OPEN/STARTしか無い(まだ出番が
+  // 未確定な)段階では、本人の出演時間として正確ではないため終日予定として登録する。
   if (stageRange) {
     start = toDate(year, month, day, stageRange.start);
     timeSource = f.stageTimeLabel;
-  } else if (openTime) {
-    start = toDate(year, month, day, openTime);
-    timeSource = "OPEN/START";
+    // 終了時刻は「物販」の終了時刻を優先し、無ければ「出番」の終了時刻を使う。
+    end = merchRange ? toDate(year, month, day, merchRange.end) : toDate(year, month, day, stageRange.end);
   } else {
     allDay = true;
     timeSource = "終日";
     start = new Date(year, month - 1, day);
-  }
-
-  if (allDay) {
     end = new Date(year, month - 1, day);
-  } else if (merchRange) {
-    // 終了時刻は「物販」の終了時刻を最優先し、無ければ出番の終了時刻、
-    // それも無ければ(OPEN/STARTのみの場合)デフォルトの長さを使う。
-    end = toDate(year, month, day, merchRange.end);
-  } else if (stageRange) {
-    end = toDate(year, month, day, stageRange.end);
-  } else {
-    end = new Date(start.getTime() + defaultDurationMinutes * 60 * 1000);
   }
 
   return {
-    type: allDay ? "all-day" : timeSource === f.stageTimeLabel ? "stage-time" : "open-start",
+    type: allDay ? "all-day" : "stage-time",
     title,
     venue,
     price,
