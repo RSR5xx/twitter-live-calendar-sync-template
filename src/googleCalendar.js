@@ -65,9 +65,44 @@ async function findExistingEventId(calendar, calendarId, eventKey, stateEventId)
 // 『』などの外側の囲み文字は問わず、"ライブ予定(キーワード)" の形さえ含んでいればよい。
 const PLACEHOLDER_RE = /ライブ予定[（(]([^）)]+)[）)]/;
 
+// 会場名がローマ字表記(例: 「BLAZE GOTANDA」)のとき、日本語の地名キーワード(例: 「五反田」)と
+// 一致させるための対応表。東京の主要なライブハウス街を中心によく使うものを登録している。
+const PLACE_ROMAJI = {
+  五反田: "gotanda",
+  渋谷: "shibuya",
+  新宿: "shinjuku",
+  大塚: "otsuka",
+  下北沢: "shimokitazawa",
+  池袋: "ikebukuro",
+  原宿: "harajuku",
+  秋葉原: "akihabara",
+  上野: "ueno",
+  六本木: "roppongi",
+  恵比寿: "ebisu",
+  中野: "nakano",
+  吉祥寺: "kichijoji",
+  高円寺: "koenji",
+  浅草: "asakusa",
+  銀座: "ginza",
+  赤坂: "akasaka",
+  代々木: "yoyogi",
+  目黒: "meguro",
+  品川: "shinagawa",
+};
+
+function venueMatchesKeyword(venue, keyword) {
+  if (!venue || !keyword) return false;
+  const v = venue.toLowerCase();
+  const k = keyword.toLowerCase();
+  if (v.includes(k)) return true;
+  const romaji = PLACE_ROMAJI[keyword];
+  return Boolean(romaji && v.includes(romaji));
+}
+
 /**
  * parsed.start と同じ日に、手動で入れておいた「ライブ予定(キーワード)」の仮予定があり、
- * かつそのキーワードが今回の会場名に含まれていれば、削除してeventIdを返す。無ければnull。
+ * かつそのキーワードが今回の会場名に含まれていれば(ローマ字表記のゆらぎも考慮)、
+ * 削除してeventIdを返す。無ければnull。
  * (今回upsert対象の予定自身は excludeEventId で除外する)
  */
 async function deleteMatchingPlaceholder(calendar, calendarId, parsed, excludeEventId) {
@@ -88,7 +123,7 @@ async function deleteMatchingPlaceholder(calendar, calendarId, parsed, excludeEv
   for (const ev of res.data.items ?? []) {
     if (ev.id === excludeEventId) continue;
     const m = (ev.summary || "").match(PLACEHOLDER_RE);
-    if (m && parsed.venue.includes(m[1])) {
+    if (m && venueMatchesKeyword(parsed.venue, m[1])) {
       await calendar.events.delete({ calendarId, eventId: ev.id });
       return ev.id;
     }
